@@ -1,0 +1,23 @@
+{
+  "references": [
+    {"version_id": "src", "sequences": {"chr": "ACGTACGT"}},
+    {"version_id": "dst", "sequences": {"chr": "ACGTACGT"}}
+  ],
+  "mapping": {
+    "mapping_id": "day-map",
+    "source_version": "src",
+    "target_version": "dst",
+    "blocks": [{"block_id": "day-block", "source_name": "chr", "source_start": 0, "source_end": 8, "target_name": "chr", "target_start": 0, "target_end": 8, "strand": 1, "source_aligned": "ACGTACGT", "target_aligned": "ACGTACGT"}]
+  },
+  "batch": {
+    "batch_id": "day",
+    "pairs": [{
+      "pair_id": "day-pair",
+      "reads": [
+        {"read_id": "day-pair/1", "pair_id": "day-pair", "mate_index": 1, "source_version": "src", "source_name": "chr", "start": 0, "source_strand": 1, "operations": "3M", "sequence": "ACG", "quality": "ABC"},
+        {"read_id": "day-pair/2", "pair_id": "day-pair", "mate_index": 2, "source_version": "src", "source_name": "chr", "start": 4, "source_strand": -1, "operations": "3M", "sequence": "CGT", "quality": "XYZ"}
+      ]
+    }]
+  },
+  "pairing": {"mate1_strand": 1, "mate2_strand": -1, "order": "mate1_left", "min_span": 7, "max_span": 7}
+}

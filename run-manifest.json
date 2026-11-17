@@ -1,0 +1,16 @@
+{
+  "working_directory": ".",
+  "python": "3.11",
+  "setup": [],
+  "verify": ["python3.11", "-B", "verify.py"],
+  "demo": ["python3.11", "-B", "verify.py", "--demo", "samples/day.json"],
+  "normal_checks": [
+    ["python3.11", "-B", "-m", "unittest", "discover", "-s", "tests", "-v"],
+    ["python3.11", "-B", "verify.py", "test_projection.TestProjection.test_identity_pair", "test_archive.TestArchive.test_reopen_and_export_failure", "test_reference.TestReference.test_invalid_mapping_atomic", "test_intake.TestIntake.test_invalid_pair_batch_atomic"],
+    ["python3.11", "-B", "verify.py", "test_projection.TestProjection.test_target_insertion", "test_archive.TestArchive.test_publish_rollback_and_retry"],
+    ["python3.11", "-B", "verify.py", "test_projection.TestProjection.test_source_gap_and_query_insertion", "test_projection.TestProjection.test_anchor_and_edge_gaps"],
+    ["python3.11", "-B", "verify.py", "test_assembly.TestAssembly.test_direction_split_pair", "test_assembly.TestAssembly.test_primary_tie_and_source_negative"]
+  ],
+  "storage": "Demo and tests use temporary directories. An explicit --store path preserves the user's registered data.",
+  "expected": "Two identity records with MD=3, NM=0, template lengths 7/-7, one proper pair; identical committed data after reopen."
+}
