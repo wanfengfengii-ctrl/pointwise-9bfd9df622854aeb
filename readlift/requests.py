@@ -33,3 +33,14 @@ def normalize_job_request(batch_id, mapping_id, pairing):
     if not isinstance(pairing, dict):
         raise ValueError("pairing must be an object")
     return batch_id, mapping_id, asdict(PairingConfig.from_data(deepcopy(pairing)))
+
+
+def normalize_chain_job_request(batch_id, mapping_ids, pairing):
+    identifier(batch_id)
+    if not isinstance(mapping_ids, (list, tuple)) or len(mapping_ids) != 2:
+        raise ValueError("chain requires exactly two mapping ids")
+    for mapping_id in mapping_ids:
+        identifier(mapping_id)
+    if not isinstance(pairing, dict):
+        raise ValueError("pairing must be an object")
+    return batch_id, list(mapping_ids), asdict(PairingConfig.from_data(deepcopy(pairing)))

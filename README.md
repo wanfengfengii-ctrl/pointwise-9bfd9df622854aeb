@@ -84,3 +84,7 @@ SnapshotStore.checkpoint(stage, candidate)是可覆写的提交前存储检查�
 完整discover保留全部测试：test_projection覆盖恒等、缺口、锚点、N、固定绑定和空批；test_assembly覆盖方向、主段、跨度、跨序列、连续块、纯删除片段及覆盖失败；test_reference覆盖参考/映射拒绝及重放；test_intake覆盖整批原子性、操作、身份及任务绑定；test_archive覆盖真实存储回滚重试、隔离读取、重开、损坏拒绝、导出失败与核账守卫；test_service贯通一天剧本。手算预期不调用生产计算函数。部分测试及demo在真实断言后输出POINTWISE_SCENARIO JSON。
 
 不支持映射搜索、重新比对、完整SAM/BAM/CRAM、变异检测、统计分析、并行调度或多写入者。
+
+## 双映射链任务（增量）
+
+CHAIN.md定义`create_chain_job(batch_id, mapping_ids, pairing)`：沿两个版本闭合的审核映射（A→B、B→C）把成对读段交付到最终参考，创建时冻结批次、两映射、三参考的身份与内容摘要。逐阶段沿用V1列消费、内部锚点与插入归属，运输中间纯删除片段，消去中间独有删除，不把查询I与参考独有碱基重配；按最终连续性重新合段，基于最终段集与C参考重算正文方向、MD/NM、主段与配对。audit增加stages两段事件证据（含消去与未交付去向），与记录共同核账后沿原边界发布；缺覆盖或最终无含M段整次拒绝。执行、读取、导出、重开与失败口径同V1。手算例见chain_cases.py，交接不变量与独立核账见CHAIN-HANDOFF.md。

@@ -2,8 +2,9 @@ from dataclasses import asdict
 from readlift.archive.store import SnapshotStore
 from readlift.reference.catalog import ReferenceCatalog
 from readlift.intake.batches import BatchCatalog
-from readlift.projection.jobs import JobCatalog
+from readlift.projection.jobs import JobCatalog, ChainJobBinding
 from readlift.projection.compose import compose_pair
+from readlift.projection.chain import compose_chain_read
 from readlift.projection.segments import segment_composed_read
 from readlift.assembly.records import assemble_read
 from readlift.assembly.pairs import attach_pair_fields
@@ -11,7 +12,8 @@ from readlift.archive.publish import ResultPublisher
 from readlift.results import read_committed_result, result_view_to_data
 from readlift.export import write_result_export
 from readlift.requests import (normalize_reference_request, normalize_mapping_request,
-                               normalize_pairs_request, normalize_job_request)
+                               normalize_pairs_request, normalize_job_request,
+                               normalize_chain_job_request)
 
 
 class ReadliftService:
@@ -36,11 +38,16 @@ class ReadliftService:
     def create_job(self, batch_id, mapping_id, pairing):
         return self.jobs.create_job(*normalize_job_request(batch_id, mapping_id, pairing))
 
+    def create_chain_job(self, batch_id, mapping_ids, pairing):
+        return self.jobs.create_chain_job(*normalize_chain_job_request(batch_id, mapping_ids, pairing))
+
     def execute_job(self, job_id):
         binding = self.jobs.get_job(job_id)
         existing = self.publisher.find_completed_result(job_id)
         if existing is not None:
             return existing
+        if isinstance(binding, ChainJobBinding):
+            return self._execute_chain_job(binding)
         batch = self.batches.get_batch(binding.batch_id)
         mapping = self.references.get_mapping(binding.mapping_id)
         source = self.references.get_reference(binding.source_version)
@@ -62,6 +69,29 @@ class ReadliftService:
                 members.append(member)
             records.extend(attach_pair_fields(*members, binding.pairing))
         result = self.publisher.publish_result(binding, batch, projections, assembled, records, target)
+        self.metrics["publication_calls"] += 1
+        return result
+
+    def _execute_chain_job(self, binding):
+        batch = self.batches.get_batch(binding.batch_id)
+        mappings = [self.references.get_mapping(m) for m in binding.mapping_ids]
+        references = [self.references.get_reference(v) for v in binding.reference_versions]
+        if ((batch.digest, [m.digest for m in mappings], [r.digest for r in references])
+                != (binding.batch_digest, binding.mapping_digests, binding.reference_digests)):
+            raise ValueError("fixed task content digest mismatch")
+        projections, assembled, records = {}, {}, []
+        self.metrics["conversion_calls"] += 1
+        for pair in batch.pairs:
+            members = []
+            for read in pair.reads:
+                projection = compose_chain_read(read, mappings[0], mappings[1])
+                member = assemble_read(read, projection.segments, references[-1])
+                projections[read.read_id] = projection
+                assembled[read.read_id] = member
+                members.append(member)
+            records.extend(attach_pair_fields(*members, binding.pairing))
+        result = self.publisher.publish_chain_result(binding, batch, projections, assembled,
+                                                     records, references[-1], mappings)
         self.metrics["publication_calls"] += 1
         return result
 

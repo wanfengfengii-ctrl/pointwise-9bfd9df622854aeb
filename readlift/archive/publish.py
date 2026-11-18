@@ -1,7 +1,7 @@
 from dataclasses import asdict
 from readlift.archive.schema import PublicationReceipt, validate_committed_result
 from readlift.archive.codec import content_digest, detached_data
-from readlift.assembly.audit import audit_batch
+from readlift.assembly.audit import audit_batch, audit_chain_batch
 
 
 def build_result_identity(binding):
@@ -25,19 +25,34 @@ class ResultPublisher:
         audit = audit_batch(batch, projections, assembled, records, binding.pairing, target_reference)
         segments = [asdict(s) for pair in batch.pairs for read in pair.reads
                     for s in assembled[read.read_id].segments]
+        return self._commit(data, segments, records, audit.to_data())
+
+    def publish_chain_result(self, binding, batch, projections, assembled, records,
+                             target_reference, mappings):
+        data = asdict(binding)
+        existing = self.find_completed_result(binding.job_id)
+        if existing is not None:
+            return existing
+        audit = audit_chain_batch(batch, projections, assembled, records, binding.pairing,
+                                  target_reference, mappings)
+        segments = [asdict(s) for pair in batch.pairs for read in pair.reads
+                    for s in assembled[read.read_id].segments]
+        return self._commit(data, segments, records, audit.to_data())
+
+    def _commit(self, data, segments, records, audit_data):
         # JSON roundtrip is intentional: durable views have only JSON containers.
         from json import loads
         from readlift.archive.codec import canonical_json_bytes
         body = loads(canonical_json_bytes({"binding": data, "segments": segments,
-                                          "records": records, "audit": audit.to_data()}))
+                                          "records": records, "audit": audit_data}))
         result_id = build_result_identity(data)
-        receipt = asdict(PublicationReceipt(binding.job_id, result_id, content_digest(body)))
+        receipt = asdict(PublicationReceipt(data["job_id"], result_id, content_digest(body)))
         result = {"result_id": result_id, **body, "receipt": receipt}
         validate_committed_result(result)
         def commit(state):
             state["results"][result_id] = result
             self.store.checkpoint("candidate_result", detached_data(state))
-            state["receipts"][binding.job_id] = receipt
+            state["receipts"][data["job_id"]] = receipt
             self.store.checkpoint("candidate_receipt", detached_data(state))
             return result
         return self.store.atomic_update(commit)

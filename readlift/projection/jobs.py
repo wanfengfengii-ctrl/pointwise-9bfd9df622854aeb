@@ -45,6 +45,22 @@ class JobBinding:
         return cls(**detached_data(data))
 
 
+@dataclass(frozen=True)
+class ChainJobBinding:
+    job_id: str
+    batch_id: str
+    batch_digest: str
+    mapping_ids: list
+    mapping_digests: list
+    reference_versions: list
+    reference_digests: list
+    pairing: dict
+
+    @classmethod
+    def from_data(cls, data):
+        return cls(**detached_data(data))
+
+
 def job_binding_digest(data):
     return content_digest(data)
 
@@ -74,6 +90,36 @@ class JobCatalog:
             return job_id
         return self.store.atomic_update(insert)
 
+    def create_chain_job(self, batch_id, mapping_ids, pairing):
+        batch = self.batches.get_batch(batch_id)
+        if (not isinstance(mapping_ids, (list, tuple)) or len(mapping_ids) != 2
+                or any(not isinstance(m, str) or not m for m in mapping_ids)):
+            raise ValueError("chain requires exactly two mapping ids")
+        first = self.references.get_mapping(mapping_ids[0])
+        second = self.references.get_mapping(mapping_ids[1])
+        config = PairingConfig.from_data(pairing)
+        if first.target_version != second.source_version:
+            raise ValueError("mapping chain is not version-closed")
+        if any(r.source_version != first.source_version for p in batch.pairs for r in p.reads):
+            raise ValueError("batch and mapping source versions differ")
+        versions = [first.source_version, first.target_version, second.target_version]
+        references = [self.references.get_reference(v) for v in versions]
+        body = {"batch_id": batch_id, "batch_digest": batch.digest,
+                "mapping_ids": list(mapping_ids), "mapping_digests": [first.digest, second.digest],
+                "reference_versions": versions,
+                "reference_digests": [r.digest for r in references], "pairing": asdict(config)}
+        job_id = "job-" + job_binding_digest(body)
+        data = asdict(ChainJobBinding(job_id=job_id, **body))
+        if job_id in self.store.read_snapshot()["jobs"]:
+            return job_id
+        def insert(state):
+            state["jobs"][job_id] = data
+            return job_id
+        return self.store.atomic_update(insert)
+
     def get_job(self, job_id):
         identifier(job_id)
-        return JobBinding.from_data(self.store.read_snapshot()["jobs"][job_id])
+        data = self.store.read_snapshot()["jobs"][job_id]
+        if "mapping_ids" in data:
+            return ChainJobBinding.from_data(data)
+        return JobBinding.from_data(data)

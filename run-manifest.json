@@ -9,8 +9,12 @@
     ["python3.11", "-B", "verify.py", "test_projection.TestProjection.test_identity_pair", "test_archive.TestArchive.test_reopen_and_export_failure", "test_reference.TestReference.test_invalid_mapping_atomic", "test_intake.TestIntake.test_invalid_pair_batch_atomic"],
     ["python3.11", "-B", "verify.py", "test_projection.TestProjection.test_target_insertion", "test_archive.TestArchive.test_publish_rollback_and_retry"],
     ["python3.11", "-B", "verify.py", "test_projection.TestProjection.test_source_gap_and_query_insertion", "test_projection.TestProjection.test_anchor_and_edge_gaps"],
-    ["python3.11", "-B", "verify.py", "test_assembly.TestAssembly.test_direction_split_pair", "test_assembly.TestAssembly.test_primary_tie_and_source_negative"]
+    ["python3.11", "-B", "verify.py", "test_assembly.TestAssembly.test_direction_split_pair", "test_assembly.TestAssembly.test_primary_tie_and_source_negative"],
+    ["python3.11", "-B", "chain_cases.py", "fixtures"],
+    ["python3.11", "-B", "chain_cases.py", "verify"],
+    ["python3.11", "-B", "verify.py", "test_chain.TestChain.test_rejoin_segments", "test_chain.TestChain.test_double_reverse_restores_direction", "test_chain.TestChain.test_undelivered_final_deletion"],
+    ["python3.11", "-B", "chain_cases.py", "demo"]
   ],
   "storage": "Demo and tests use temporary directories. An explicit --store path preserves the user's registered data.",
-  "expected": "Two identity records with MD=3, NM=0, template lengths 7/-7, one proper pair; identical committed data after reopen."
+  "expected": "Old regressions unchanged: two identity records with MD=3, NM=0, template lengths 7/-7, one proper pair, identical committed data after reopen. New chain results reconcile against hand-computed cases: cancel 4M/MD=4/NM=0 with middle-only base elided, independent 2M1I1D2M/MD=2^A2/NM=2, double_reverse 6M with direction restored, rejoin one 6M proper pair from split middle spans, still_split two segments without pairing, deletion_bridge 1M2D1M/MD=1^CG1/NM=2 rejoined; coverage/no-M/deleted-coverage rejections and publish-failure rollback leave no results; reopen replay and export do not recompute."
 }

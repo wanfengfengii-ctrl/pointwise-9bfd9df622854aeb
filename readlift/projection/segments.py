@@ -38,8 +38,7 @@ def validate_segment_partition(segments):
             raise ValueError("segment consumption is not closed")
 
 
-def segment_composed_read(composed):
-    events = composed.events
+def group_projected_events(events):
     groups, assigned = [], {}
     previous = None
     for event in events:
@@ -70,9 +69,15 @@ def segment_composed_read(composed):
         if owner.order in assigned:
             assigned[event.order] = assigned[owner.order]
             groups[assigned[event.order]].append(event)
-    segments = []
     for group in groups:
         group.sort(key=lambda e: e.order)
+    return groups, assigned
+
+
+def segment_composed_read(composed):
+    groups, assigned = group_projected_events(composed.events)
+    segments = []
+    for group in groups:
         queries = [e.query_index for e in group if e.query_index is not None]
         if not queries:
             continue

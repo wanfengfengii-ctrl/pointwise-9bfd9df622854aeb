@@ -51,8 +51,16 @@ def validate_snapshot_structure(state):
                 or mapping.get("target_version") not in state["references"]):
             raise ValueError("mapping reference does not close")
     for key, job in state["jobs"].items():
-        if (job.get("job_id") != key or job.get("batch_id") not in state["batches"]
-                or job.get("mapping_id") not in state["mappings"]
+        if job.get("job_id") != key or job.get("batch_id") not in state["batches"]:
+            raise ValueError("job binding does not close")
+        if "mapping_ids" in job:
+            versions = job.get("reference_versions")
+            if (not isinstance(job["mapping_ids"], list) or len(job["mapping_ids"]) != 2
+                    or any(m not in state["mappings"] for m in job["mapping_ids"])
+                    or not isinstance(versions, list) or len(versions) != 3
+                    or any(v not in state["references"] for v in versions)):
+                raise ValueError("job binding does not close")
+        elif (job.get("mapping_id") not in state["mappings"]
                 or job.get("source_version") not in state["references"]
                 or job.get("target_version") not in state["references"]):
             raise ValueError("job binding does not close")

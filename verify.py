@@ -68,12 +68,21 @@ def main():
         if args.tests:
             parser.error("test selectors cannot accompany demo")
         if args.store:
-            return demo(args.demo, args.store)
-        with tempfile.TemporaryDirectory(prefix="readlift-demo-") as directory:
-            return demo(args.demo, Path(directory) / "archive.json")
+            code = demo(args.demo, args.store)
+        else:
+            with tempfile.TemporaryDirectory(prefix="readlift-demo-") as directory:
+                code = demo(args.demo, Path(directory) / "archive.json")
+        if code:
+            return code
+        from chain_cases import verify as chain_verify
+        return chain_verify(True)
     if args.store:
         parser.error("--store requires --demo")
-    return verify(args.tests)
+    code = verify(args.tests)
+    if code or args.tests:
+        return code
+    from chain_cases import verify as chain_verify
+    return chain_verify()
 
 
 if __name__ == "__main__":
